@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Movie Recommendation System</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- jQuery + jQuery UI -->
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/smoothness/jquery-ui.css">
+  <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+  <div class="container py-5 text-white">
+    <h1 class="text-center mb-4 display-5">🎬 Movie Recommendation System</h1>
+
+    <!-- Movie Selection Form with Autocomplete -->
+    <form id="recommend-form" method="POST" class="d-flex justify-content-center mb-4">
+      <input type="text" id="movie-input" name="movie" class="form-control w-50 me-2"
+             placeholder="Type a movie name..." required value="{{ selected_movie or '' }}">
+      <button type="submit" class="btn btn-danger">Recommend</button>
+    </form>
+
+    <!-- Loading Spinner -->
+    <div id="loading-spinner" class="text-center my-5" style="display: none;">
+      <div class="spinner-border text-danger" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-2">Fetching recommendations...</p>
+    </div>
+
+    <!-- Recommended Movies -->
+    {% if zipped_data %}
+    <div class="row justify-content-center">
+      {% for name, poster, rating, genres, movie_id in zipped_data %}
+      <div class="col-md-3 col-sm-6 mb-4">
+        <div class="card bg-dark text-white shadow-sm h-100">
+          <img src="{{ poster }}" class="card-img-top" alt="Poster for {{ name }}">
+          <div class="card-body text-center">
+            <h6 class="card-title">{{ name }}</h6>
+            <span class="badge bg-warning text-dark me-1">⭐ {{ rating }}</span>
+            <span class="badge bg-secondary" title="{{ genres }}">{{ genres }}</span><br>
+            <button class="btn btn-outline-light btn-sm mt-2 watch-trailer-btn"
+                    data-movie-id="{{ movie_id }}" data-bs-toggle="modal" data-bs-target="#trailerModal">
+              Watch Trailer
+            </button>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Modal for Trailer -->
+  <div class="modal fade" id="trailerModal" tabindex="-1" aria-labelledby="trailerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title" id="trailerModalLabel">Movie Trailer</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center">
+          <iframe id="trailerFrame" width="100%" height="400" frameborder="0" allowfullscreen></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Custom Scripts -->
+  <script>
+    // Show spinner on submit
+    $('#recommend-form').on('submit', function () {
+      $('#loading-spinner').show();
+    });
+
+    // Auto-suggestion from Python list
+    const movies = {{ movie_list|tojson }};
+    $("#movie-input").autocomplete({
+      source: movies,
+      minLength: 2
+    });
+
+    // Fetch and show trailer in modal
+    $('.watch-trailer-btn').on('click', function () {
+      const movieId = $(this).data('movie-id');
+      const apiKey = '8265bd1679663a7ea12ac168da84d2e8';
+
+      fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${apiKey}&language=en-US`)
+        .then(response => response.json())
+        .then(data => {
+          const trailer = data.results.find(video => video.type === 'Trailer' && video.site === 'YouTube');
+          if (trailer) {
+            const videoUrl = `https://www.youtube.com/embed/${trailer.key}`;
+            $('#trailerFrame').attr('src', videoUrl);
+          } else {
+            $('#trailerFrame').attr('src', '');
+            alert('Trailer not available');
+          }
+        });
+    });
+
+    // Clear trailer when modal is closed
+    $('#trailerModal').on('hidden.bs.modal', function () {
+      $('#trailerFrame').attr('src', '');
+    });
+  </script>
+</body>
+</html>
